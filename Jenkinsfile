@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_ID = "legeni07"
+        DOCKERHUB_ID = "heyitsdom"
         IMAGE_NAME   = "${DOCKERHUB_ID}/legeni-academy"
     }
 
@@ -61,10 +61,17 @@ pipeline {
             }
         }
 
-        stage('Déploiement Production par Ansible') {
+        stage('Déploiement Production (Ansible + Kubernetes)') {
             steps {
                 dir('ansible') {
-                    sh 'ansible-playbook deploy_icgroup.yml -e app_version=${APP_VERSION}'
+                    sh 'ansible-playbook --syntax-check deploy_icgroup.yml'
+                }
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl set image deployment/legeni-academy-deployment \
+                            legeni-academy=${IMAGE_NAME}:${APP_VERSION} -n icgroup
+                        kubectl rollout status deployment/legeni-academy-deployment -n icgroup --timeout=120s
+                    '''
                 }
             }
         }
